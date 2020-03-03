@@ -1,0 +1,91 @@
+
+GET http://localhost:5000/ HTTP/1.1
+
+###
+
+POST http://localhost:5000/test HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "test",
+    "index": "tester"
+}
+
+###
+
+POST http://localhost:8080/api/v1/testpost HTTP/1.1
+Content-TYPE: application/json
+
+{
+    "test": "this is a test"
+}
+
+###
+GET http://localhost:8080/api/v1/clients HTTP/1.1
+
+###request for a row that already exists
+POST http://localhost:8080/api/v1/client HTTP/1.1
+Content-Type: application/json
+
+{
+    "prime_key": 20,
+    "status": 1
+}
+
+###request for a row that doesn't exist
+POST http://localhost:8080/api/v1/client HTTP/1.1
+Content-Type: application/json
+
+{
+    "client_name": "Client-2",
+    "year": "2020",
+    "month": "2",
+    "status": "1"
+}
+
+###bad request for updating a client
+POST http://localhost:8080/api/v1/client HTTP/1.1
+Content-Type: application/json
+
+{
+    "status": "2"
+}
+
+###bad request for updating a client
+POST http://localhost:8080/api/v1/client HTTP/1.1
+Content-Type: application/json
+
+{
+    "prime_key": 1
+}
+
+###Get the status for the clients
+GET http://localhost:8080/api/v1/clients/status HTTP/1.1
+Content-Type: application/json
+
+{
+    "clients": [
+                    "Client-3"
+                ],
+    "starting_year": 2019,
+    "starting_month": 7,
+    "ending_year": 2020,
+    "ending_month": 4
+}
+
+###Get the status for the clients - malformed
+GET http://localhost:8080/api/v1/clients/status HTTP/1.1
+Content-Type: application/json
+
+{
+    "clients": [
+                    "Client-3",
+                    "Client-2",
+                    "Client-1",
+                    "Client-4",
+                    "Client-0"
+                ],
+    "starting_year": 2019,
+    "starting_month": 7,
+    "ending_year": 2020
+}

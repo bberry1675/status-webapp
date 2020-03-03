@@ -1,0 +1,26 @@
+
+.main-container{
+    /* width: 95%; */
+    justify-self: center;
+    margin-top: 15px;
+    /* background-color: white; */
+    max-width: 95%;
+}
+
+body,.main-container.container{
+    /* background-color: rgba(0, 46, 115, 0.08); */
+    
+}
+
+thead,tbody, option{
+    width: 100%;
+    background-color: white;
+}
+
+.min-select{
+    width: 95%;
+}
+
+a.btn.btn-outline-primary.navbar-btn{
+    background-color: white;
+}
