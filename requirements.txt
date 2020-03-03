@@ -1,5 +1,5 @@
 flask
 flask_oidc
-psycopg2
-dotenv
+psycopg2-binary
+python-dotenv
 waitress
