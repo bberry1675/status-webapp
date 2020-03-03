@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 from flask import Flask, render_template, url_for, redirect, request, jsonify
 from flask_oidc import OpenIDConnect
 import psycopg2
@@ -43,7 +44,8 @@ try:
             pscursor = psconnection.cursor()
             pscursor.execute(createCLIENTSSQL)
             pscursor.execute(createLOGSSQL)
-            pscursor.execute(createLOGSSQL)
+            pscursor.execute(createUsersSQL)
+            psconnection.commit()
             print("Verified database has required tables")
             pscursor.close()
             postgrePool.putconn(psconnection)
@@ -81,15 +83,6 @@ def home():
 def login():
     return redirect(url_for("main"))
 
-
-@app.route("/profile")
-@oidc.require_login
-def profile():
-    info = oidc.user_getinfo(["sub", "name", "email"])
-
-    return render_template("profile.html", profile=info, oidc=oidc)
-
-
 @app.route("/logout", methods=["GET", "POST"])
 def logout():
     oidc.logout()
@@ -99,7 +92,6 @@ def logout():
 @app.route("/main", methods=["GET"])
 @oidc.require_login
 def main():
-    #print(oidc.user_getinfo(["email"]))
     user_email = oidc.user_getinfo(["email"])['email']
     
     conn = postgrePool.getconn()
@@ -112,7 +104,6 @@ def main():
         print("User was not in the database going to add them")
         cursor.execute("INSERT INTO USERS (username) VALUES (%s); SELECT (id) FROM USERS WHERE username=%s;", (user_email,user_email))
         returned_response = cursor.fetchall()
-        print(returned_response)
         logSQL = "INSERT INTO LOGS (username, changed_table, row, col, previous_value, new_value, timestamp) VALUES (%s,%s,%s,%s,%s,%s,%s)"
         logTup = ("server", "users", returned_response[0][0], "username", "none", user_email, datetime.datetime.today())
         write_permission = False
@@ -120,7 +111,6 @@ def main():
         cursor.execute(logSQL, logTup)
         conn.commit()
     else:
-        print(returned_response)
         write_permission = returned_response[0][0]
     
     
@@ -128,12 +118,6 @@ def main():
     postgrePool.putconn(conn)
 
     return render_template("webapp.html", write_permission=write_permission)
-
-
-@app.route("/api/v1/testpost", methods=["POST"])
-def testpost():
-    print(request.json)
-    return jsonify(output="Success")
 
 
 @app.route("/api/v1/clients", methods=["GET"])
@@ -173,7 +157,6 @@ def updateClient():
         return malformedBodyResponse("status", "status value required to update row")
 
     if('prime_key' in body.keys()):
-        print("found the prime key")
 
         #check if the primary key exists
         checkSQL = "SELECT * FROM CLIENTS WHERE id=%s;"
@@ -214,8 +197,6 @@ def updateClient():
     elif('client_name' in body.keys()):
 
         # check if the values already exist and if they do then update instead of inserting
-
-        #print("found the client name for a new row")
 
         if(all(elem in body.keys() for elem in ["year", "month"])):
             
@@ -263,11 +244,9 @@ def updateClient():
 
             if(len(checkresponse) > 0):
                 #case where the row already exists
-                print("Found an existing row in the table")
                 cursor.execute(updateSQL,updateTUP)
             else:
                 #case where the row doesn't exist
-                print("No existing row for client and date")
                 cursor.execute(insertSQL,insertTUP)
                 inserted_new_row = True
                 
@@ -276,10 +255,8 @@ def updateClient():
             logSQL = "INSERT INTO LOGS (username, changed_table, row, col, previous_value, new_value, timestamp) VALUES (%s,%s,%s,%s,%s,%s,%s);"
 
             if(inserted_new_row):
-                print("inserted a new row")
                 logTup = (oidc.user_getinfo(["email"])['email'], "clients", returned_row[0][0], "status", "none", returned_row[0][3], datetime.datetime.today())
             else:
-                print("did not insert a new row")
                 logTup = (oidc.user_getinfo(["email"])['email'], "clients", returned_row[0][0], "status", checkresponse[0][3], returned_row[0][3], datetime.datetime.today())
             
             cursor.execute(logSQL, logTup)
@@ -308,17 +285,10 @@ def updateClient():
 @oidc.require_login
 def clientStatus():
     required_keys = ("clients[]", "starting_year", "starting_month", "ending_year", "ending_month")
-    #print(request.args)
-    #print(request.args.getlist('clients[]'))
-    #print(list(request.args.keys()))
-    #body = request.json
-    
-    
     
     if(all(elem in request.args.keys() for elem in required_keys)):
         #case where all the keys exist in the request
-        print("found all the required keys")
-        #print(request.args.getlist('clients[]'))
+
         body = {
             "clients": request.args.getlist('clients[]'),
             "starting_year": request.args.get('starting_year'),
@@ -347,14 +317,10 @@ def clientStatus():
         cursor.execute(sql,tup)
 
         returned_values = cursor.fetchall()
-        #print(returned_values)
-        #print(body['clients'])
+
         #filter out all of the values which the client is not requesting
         filtered_values = list(filter(lambda x: x[1] in body['clients'],returned_values))
-        #print(filtered_values)
 
-        #might not need to commit a change if it is just looking up a value
-        #conn.commit()
         cursor.close()
         postgrePool.putconn(conn)
 
@@ -383,16 +349,13 @@ def newClient():
     
 
     if(write_permission):
-        print("has permission")
         if('new_client_name' in request.form.keys()):
-            print("has the client name key")
             new_client_name = request.form.get('new_client_name')
-            print("going to insert " + new_client_name)
+
             cursor.execute("SELECT DISTINCT client FROM clients;")
             if(new_client_name.upper() in list(map(lambda x: x[0].upper(),cursor.fetchall()))):
-                print("the client name already exists")
+                pass
             else:
-                print("The client name doesn't exist going to insert it")
                 today = datetime.datetime.today()
                 datem = datetime.date(today.year, today.month, 1)
                 cursor.execute("INSERT INTO CLIENTS (client, month) VALUES (%s,%s);SELECT * FROM CLIENTS WHERE client=%s AND month=%s",(new_client_name,datem,new_client_name,datem))
@@ -402,23 +365,16 @@ def newClient():
                 cursor.execute(logSQL, logTup)
                 conn.commit()
 
-        
-    # if the username has write capabilities then continue if not fail
-
-    # create a new row for the client with the current month
-
     cursor.close()
     postgrePool.putconn(conn)
     return redirect(url_for('main'))
 
 
-print(os.getenv("APPDEBUG").upper() is "true".upper())
-
 if __name__ == '__main__':
     print("Starting the server")
     if(os.getenv("APPDEBUG").upper() is 'true'.upper()):
         print("Using the development server")
-        app.run(host=os.getenv("APPHOST"), port=os.getenv("APPPORT"), debug=bool(os.getenv("APPDEBUG")))
+        app.run(host=os.getenv("APPHOST"), port=os.getenv("APPPORT"), debug=os.getenv("APPDEBUG").upper() is 'true'.upper())
     else:
         print("Using the production server")
         from waitress import serve
